@@ -29,3 +29,9 @@ yarn-error.log*
 
 # TypeScript
 *.tsbuildinfo
+
+/src/generated/prisma
+
+import-schema.js
+schema_aiven.sql
+database/schema_aiven.sql
