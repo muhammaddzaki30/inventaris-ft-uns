@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import { User, Barang, Pengajuan, Peminjaman, Notifikasi, Ruangan, QrCode, RiwayatBarang, LaporanKerusakan, Maintenance, Vendor, DetailPenghapusan, StockOpname, DetailStockOpname, LogAktivitas, Role, SubRole } from "@/types";
 import { getSeedData, DEMO_USERS } from "@/lib/seed";
+import { logActivity } from "@/lib/logActivity";
 
 interface AppState {
   hasHydrated: boolean;
@@ -117,6 +118,15 @@ export const useAppStore = create<AppState>()(
           document.cookie = `ft_user=${encodeURIComponent(JSON.stringify(userForCookie))}; path=/; SameSite=Lax`;
         }
         set({ currentUser: user });
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: user.id,
+          userNama: user.nama,
+          userRole: user.subRole || user.role,
+          aktivitas: "Login ke sistem",
+          tipe: "login",
+          waktu: new Date().toISOString(),
+        });
         return user;
       },
 
@@ -132,6 +142,15 @@ export const useAppStore = create<AppState>()(
         if (ada) return { ok: false, error: "Email sudah terdaftar. Silakan masuk." };
         const u: User = { id: "u-" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7), nama: nama.trim(), email: email.trim(), password, role: "user", subRole: "mahasiswa", roleSelected: true, isActive: true };
         set((s) => ({ users: [...s.users, u], currentUser: u }));
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: u.id,
+          userNama: u.nama,
+          userRole: u.subRole,
+          aktivitas: "Mendaftar akun baru sebagai Mahasiswa",
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
         if (typeof document !== "undefined") {
           document.cookie = `ft_user=${encodeURIComponent(JSON.stringify({ id: u.id, role: u.role, subRole: u.subRole, prodi: u.prodi, gedung: u.gedung }))}; path=/; SameSite=Lax`;
         }
@@ -165,15 +184,74 @@ export const useAppStore = create<AppState>()(
         }
       },
 
-      addBarang: (b) => set((s) => ({ barang: [...s.barang, b] })),
+      addBarang: (b) => {
+        set((s) => ({ barang: [...s.barang, b] }));
+        const cu = get().currentUser;
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: b.ditambahkanOleh || cu?.id || "",
+          userNama: cu?.nama || "Sistem",
+          userRole: cu?.subRole || cu?.role,
+          aktivitas: `Menambahkan barang ${b.nama} (${b.kodeUnik})`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
       updateBarang: (b) => set((s) => ({ barang: s.barang.map((x) => (x.id === b.id ? b : x)) })),
       deleteBarang: (id) => set((s) => ({ barang: s.barang.filter((x) => x.id !== id) })),
 
-      addPengajuan: (p) => set((s) => ({ pengajuan: [...s.pengajuan, p] })),
-      updatePengajuan: (p) => set((s) => ({ pengajuan: s.pengajuan.map((x) => (x.id === p.id ? p : x)) })),
+      addPengajuan: (p) => {
+        set((s) => ({ pengajuan: [...s.pengajuan, p] }));
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: p.pelaporId,
+          userNama: p.pelaporNama,
+          userRole: p.pelaporSubRole,
+          aktivitas: `Mengajukan ${p.jenisPengajuan} untuk ${p.barangNama} (${p.kode})`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
+      updatePengajuan: (p) => {
+        set((s) => ({ pengajuan: s.pengajuan.map((x) => (x.id === p.id ? p : x)) }));
+        const cu = get().currentUser;
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: cu?.id || "",
+          userNama: cu?.nama || "Sistem",
+          userRole: cu?.subRole || cu?.role,
+          aktivitas: `Status pengajuan ${p.kode} → ${p.status}`,
+          tipe: "update",
+          waktu: new Date().toISOString(),
+        });
+      },
 
-      addPeminjaman: (p) => set((s) => ({ peminjaman: [...s.peminjaman, p] })),
-      updatePeminjaman: (p) => set((s) => ({ peminjaman: s.peminjaman.map((x) => (x.id === p.id ? p : x)) })),
+      addPeminjaman: (p) => {
+        set((s) => ({ peminjaman: [...s.peminjaman, p] }));
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: p.peminjamId,
+          userNama: p.peminjamNama,
+          userRole: get().currentUser?.subRole || get().currentUser?.role,
+          aktivitas: `Meminjam ${p.barangNama}`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
+      updatePeminjaman: (p) => {
+        set((s) => ({ peminjaman: s.peminjaman.map((x) => (x.id === p.id ? p : x)) }));
+        if (p.status === "dikembalikan") {
+          get().addLogAktivitas({
+            id: `log-${Date.now()}`,
+            userId: p.peminjamId,
+            userNama: p.peminjamNama,
+            userRole: get().currentUser?.subRole || get().currentUser?.role,
+            aktivitas: `Mengembalikan ${p.barangNama}`,
+            tipe: "update",
+            waktu: new Date().toISOString(),
+          });
+        }
+      },
 
       addNotifikasi: (n) => set((s) => ({ notifikasi: [n, ...s.notifikasi] })),
       tandaiNotifDibaca: (id) => set((s) => ({ notifikasi: s.notifikasi.map((n) => (n.id === id ? { ...n, dibaca: true } : n)) })),
@@ -188,16 +266,50 @@ export const useAppStore = create<AppState>()(
         return { users: Array.from(map.values()) };
       }),
 
-      addLaporanKerusakan: (lk) => set((s) => ({ laporanKerusakan: [...s.laporanKerusakan, lk] })),
+      addLaporanKerusakan: (lk) => {
+        set((s) => ({ laporanKerusakan: [...s.laporanKerusakan, lk] }));
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: lk.pelaporId,
+          userNama: lk.pelaporNama,
+          userRole: get().currentUser?.subRole || get().currentUser?.role,
+          aktivitas: `Melaporkan kerusakan ${lk.barangNama} (${lk.kode})`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
       updateLaporanKerusakan: (lk) => set((s) => ({ laporanKerusakan: s.laporanKerusakan.map((x) => (x.id === lk.id ? lk : x)) })),
 
-      addMaintenance: (m) => set((s) => ({ maintenanceData: [...s.maintenanceData, m] })),
+      addMaintenance: (m) => {
+        set((s) => ({ maintenanceData: [...s.maintenanceData, m] }));
+        const cu = get().currentUser;
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: cu?.id || "",
+          userNama: cu?.nama || "Sistem",
+          userRole: cu?.subRole || cu?.role,
+          aktivitas: `Mengajukan order maintenance ${m.kode} untuk ${m.barangNama}`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
       updateMaintenance: (m) => set((s) => ({ maintenanceData: s.maintenanceData.map((x) => (x.id === m.id ? m : x)) })),
 
       addStockOpname: (so) => set((s) => ({ stockOpname: [...s.stockOpname, so] })),
       updateStockOpname: (so) => set((s) => ({ stockOpname: s.stockOpname.map((x) => (x.id === so.id ? so : x)) })),
       addDetailStockOpname: (d) => set((s) => ({ detailStockOpname: [...s.detailStockOpname, d] })),
-      addLogAktivitas: (l) => set((s) => ({ logAktivitas: [l, ...s.logAktivitas] })),
+      addLogAktivitas: (l) => {
+        set((s) => ({ logAktivitas: [l, ...s.logAktivitas] }));
+        // ID user di localStorage berupa string custom (u-xxxx), gak cocok sama
+        // kolom id_user INT di MySQL — kirim null, tapi tetap rekam nama & peran.
+        logActivity({
+          id_user: null,
+          user_nama: l.userNama,
+          user_role: l.userRole ?? null,
+          aktivitas: l.aktivitas,
+          tipe: l.tipe,
+        });
+      },
       addChatMessage: (m) => set((s) => ({ chatMessages: [...s.chatMessages, m] })),
       startChat: (contact) => {
         const cu = get().currentUser; if (!cu) return "";
@@ -218,8 +330,32 @@ export const useAppStore = create<AppState>()(
       markChatRead: (threadId, side) => set((s) => ({
         chatMessages: s.chatMessages.map((m) => (m.threadId === threadId && m.fromSide !== side ? { ...m, dibaca: true } : m)),
       })),
-      addRuangan: (r) => set((s) => ({ ruangan: [...s.ruangan, r] })),
-      updateRuangan: (r) => set((s) => ({ ruangan: s.ruangan.map((x) => (x.id === r.id ? r : x)) })),
+      addRuangan: (r) => {
+        set((s) => ({ ruangan: [...s.ruangan, r] }));
+        const cu = get().currentUser;
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: cu?.id || "",
+          userNama: cu?.nama || "Sistem",
+          userRole: cu?.subRole || cu?.role,
+          aktivitas: `Menambahkan ruangan ${r.namaRuang} (${r.kodeRuang})`,
+          tipe: "create",
+          waktu: new Date().toISOString(),
+        });
+      },
+      updateRuangan: (r) => {
+        set((s) => ({ ruangan: s.ruangan.map((x) => (x.id === r.id ? r : x)) }));
+        const cu = get().currentUser;
+        get().addLogAktivitas({
+          id: `log-${Date.now()}`,
+          userId: cu?.id || "",
+          userNama: cu?.nama || "Sistem",
+          userRole: cu?.subRole || cu?.role,
+          aktivitas: `Mengubah data ruangan ${r.namaRuang} (${r.kodeRuang})`,
+          tipe: "update",
+          waktu: new Date().toISOString(),
+        });
+      },
       deleteRuangan: (id) => set((s) => ({ ruangan: s.ruangan.filter((x) => x.id !== id) })),
       deleteMaintenance: (id) => set((s) => ({ maintenanceData: s.maintenanceData.filter((x) => x.id !== id) })),
       addDetailPenghapusan: (d) => set((s) => ({ detailPenghapusan: [d, ...s.detailPenghapusan] })),

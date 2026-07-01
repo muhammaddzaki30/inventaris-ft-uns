@@ -1,0 +1,276 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model barang {
+  id_barang           Int                   @id @default(autoincrement())
+  kode_barang         String                @db.VarChar(50)
+  nup                 String                @db.VarChar(20)
+  kode_unik           String                @unique @db.VarChar(70)
+  nama_barang         String                @db.VarChar(150)
+  merek               String?               @db.VarChar(150)
+  penguasaan          String?               @db.VarChar(50)
+  tahun_perolehan     Int?
+  keterangan          String?               @db.VarChar(100)
+  id_ruangan          Int?
+  id_status           Int?
+  created_by          Int?
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  updated_at          DateTime?             @default(now()) @db.Timestamp(6)
+  users               users?                @relation(fields: [created_by], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  ruangan             ruangan?              @relation(fields: [id_ruangan], references: [id_ruangan], onDelete: NoAction, onUpdate: NoAction)
+  status_barang       status_barang?        @relation(fields: [id_status], references: [id_status], onDelete: NoAction, onUpdate: NoAction)
+  detail_stock_opname detail_stock_opname[]
+  laporan_kerusakan   laporan_kerusakan[]
+  maintenance         maintenance[]
+  pengajuan           pengajuan[]
+  penghapusan         penghapusan[]
+  qr_code             qr_code?
+  riwayat_barang      riwayat_barang[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model detail_stock_opname {
+  id_detail         Int            @id @default(autoincrement())
+  id_opname         Int?
+  id_barang         Int?
+  id_ruangan        Int?
+  id_status         Int?
+  tingkat_kerusakan String?        @db.VarChar(50)
+  id_user           Int?
+  id_pengajuan      Int?
+  catatan           String?
+  tanggal_scan      DateTime?      @default(now()) @db.Timestamp(6)
+  barang            barang?        @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  stock_opname      stock_opname?  @relation(fields: [id_opname], references: [id_opname], onDelete: NoAction, onUpdate: NoAction)
+  pengajuan         pengajuan?     @relation(fields: [id_pengajuan], references: [id_pengajuan], onDelete: NoAction, onUpdate: NoAction)
+  ruangan           ruangan?       @relation(fields: [id_ruangan], references: [id_ruangan], onDelete: NoAction, onUpdate: NoAction)
+  status_barang     status_barang? @relation(fields: [id_status], references: [id_status], onDelete: NoAction, onUpdate: NoAction)
+  users             users?         @relation(fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model gedung {
+  id_gedung   Int       @id @default(autoincrement())
+  kode_gedung String    @unique @db.VarChar(10)
+  nama_gedung String    @db.VarChar(100)
+  ruangan     ruangan[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model laporan {
+  id_laporan       Int       @id @default(autoincrement())
+  nama_laporan     String    @db.VarChar(255)
+  format_file      String?   @db.VarChar(50)
+  generated_by     Int?
+  tanggal_generate DateTime? @default(now()) @db.Timestamp(6)
+  users            users?    @relation(fields: [generated_by], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model laporan_kerusakan {
+  id_lapor                                         Int           @id @default(autoincrement())
+  id_barang                                        Int?
+  tanggal_lapor                                    DateTime?     @default(now()) @db.Timestamp(6)
+  deskripsi                                        String?
+  foto_bukti                                       String?       @db.VarChar(255)
+  tingkat_kerusakan                                String?       @db.VarChar(50)
+  id_user                                          Int?
+  status_verifikasi                                String?       @db.VarChar(50)
+  diverifikasi_oleh                                Int?
+  tindak_lanjut                                    String?       @db.VarChar(50)
+  users_laporan_kerusakan_diverifikasi_olehTousers users?        @relation("laporan_kerusakan_diverifikasi_olehTousers", fields: [diverifikasi_oleh], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  barang                                           barang?       @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  users_laporan_kerusakan_id_userTousers           users?        @relation("laporan_kerusakan_id_userTousers", fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  penghapusan                                      penghapusan[]
+}
+
+model log_aktivitas {
+  id_log    Int       @id @default(autoincrement())
+  id_user   Int?
+  aktivitas String
+  waktu     DateTime? @default(now()) @db.Timestamp(6)
+  users     users?    @relation(fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model maintenance {
+  id_maintenance      Int           @id @default(autoincrement())
+  id_barang           Int?
+  id_pengajuan        Int?
+  id_vendor           Int?
+  tanggal_mulai       DateTime?     @db.Date
+  tanggal_selesai     DateTime?     @db.Date
+  prioritas           String?       @db.VarChar(50)
+  status_maintenance  String?       @db.VarChar(50)
+  deskripsi_perbaikan String?
+  biaya               Decimal?      @db.Decimal(12, 2)
+  id_user             Int?
+  created_at          DateTime?     @default(now()) @db.Timestamp(6)
+  barang              barang?       @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  pengajuan           pengajuan?    @relation(fields: [id_pengajuan], references: [id_pengajuan], onDelete: NoAction, onUpdate: NoAction)
+  users               users?        @relation(fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  vendor              vendor?       @relation(fields: [id_vendor], references: [id_vendor], onDelete: NoAction, onUpdate: NoAction)
+  penghapusan         penghapusan[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model pengajuan {
+  id_pengajuan                           Int                   @id @default(autoincrement())
+  id_barang                              Int?
+  id_user_pengaju                        Int?
+  jenis_pengajuan                        String?               @db.VarChar(50)
+  alasan                                 String?
+  foto_kondisi                           String?               @db.VarChar(255)
+  status_pengajuan                       String?               @db.VarChar(50)
+  diproses_oleh                          Int?
+  catatan_proses                         String?
+  tanggal_pengajuan                      DateTime?             @default(now()) @db.Timestamp(6)
+  tanggal_diproses                       DateTime?             @db.Timestamp(6)
+  detail_stock_opname                    detail_stock_opname[]
+  maintenance                            maintenance[]
+  users_pengajuan_diproses_olehTousers   users?                @relation("pengajuan_diproses_olehTousers", fields: [diproses_oleh], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  barang                                 barang?               @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  users_pengajuan_id_user_pengajuTousers users?                @relation("pengajuan_id_user_pengajuTousers", fields: [id_user_pengaju], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  penghapusan                            penghapusan[]
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model penghapusan {
+  id_penghapusan                          Int                @id @default(autoincrement())
+  id_barang                               Int?
+  sumber                                  String?            @db.VarChar(50)
+  id_laporan_kerusakan                    Int?
+  id_opname                               Int?
+  id_maintenance                          Int?
+  id_pengajuan                            Int?
+  tanggal_penghapusan                     DateTime?          @db.Date
+  alasan                                  String?
+  disetujui_oleh                          Int?
+  id_user                                 Int?
+  created_at                              DateTime?          @default(now()) @db.Timestamp(6)
+  users_penghapusan_disetujui_olehTousers users?             @relation("penghapusan_disetujui_olehTousers", fields: [disetujui_oleh], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+  barang                                  barang?            @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  laporan_kerusakan                       laporan_kerusakan? @relation(fields: [id_laporan_kerusakan], references: [id_lapor], onDelete: NoAction, onUpdate: NoAction)
+  maintenance                             maintenance?       @relation(fields: [id_maintenance], references: [id_maintenance], onDelete: NoAction, onUpdate: NoAction)
+  stock_opname                            stock_opname?      @relation(fields: [id_opname], references: [id_opname], onDelete: NoAction, onUpdate: NoAction)
+  pengajuan                               pengajuan?         @relation(fields: [id_pengajuan], references: [id_pengajuan], onDelete: NoAction, onUpdate: NoAction)
+  users_penghapusan_id_userTousers        users?             @relation("penghapusan_id_userTousers", fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model playing_with_neon {
+  id    Int    @id @default(autoincrement())
+  name  String
+  value Float? @db.Real
+}
+
+model qr_code {
+  id_qr      Int       @id @default(autoincrement())
+  id_barang  Int?      @unique
+  kode_unik  String    @db.VarChar(70)
+  id_ruangan Int?
+  isi_qr     String?
+  file_qr    String?   @db.VarChar(255)
+  created_at DateTime? @default(now()) @db.Timestamp(6)
+  barang     barang?   @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  ruangan    ruangan?  @relation(fields: [id_ruangan], references: [id_ruangan], onDelete: NoAction, onUpdate: NoAction)
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model riwayat_barang {
+  id_riwayat                                                 Int            @id @default(autoincrement())
+  id_barang                                                  Int?
+  id_status_lama                                             Int?
+  id_status_baru                                             Int?
+  permasalahan                                               String?
+  sumber                                                     String?        @db.VarChar(50)
+  tanggal                                                    DateTime?      @default(now()) @db.Timestamp(6)
+  id_user                                                    Int?
+  barang                                                     barang?        @relation(fields: [id_barang], references: [id_barang], onDelete: NoAction, onUpdate: NoAction)
+  status_barang_riwayat_barang_id_status_baruTostatus_barang status_barang? @relation("riwayat_barang_id_status_baruTostatus_barang", fields: [id_status_baru], references: [id_status], onDelete: NoAction, onUpdate: NoAction)
+  status_barang_riwayat_barang_id_status_lamaTostatus_barang status_barang? @relation("riwayat_barang_id_status_lamaTostatus_barang", fields: [id_status_lama], references: [id_status], onDelete: NoAction, onUpdate: NoAction)
+  users                                                      users?         @relation(fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model roles {
+  id_role   Int     @id @default(autoincrement())
+  nama_role String  @unique @db.VarChar(50)
+  users     users[]
+}
+
+model ruangan {
+  id_ruangan          Int                   @id @default(autoincrement())
+  kode_ruangan        String                @unique @db.VarChar(20)
+  nama_ruangan        String                @db.VarChar(100)
+  id_gedung           Int?
+  lantai              Int?
+  penanggung_jawab    Int?
+  barang              barang[]
+  detail_stock_opname detail_stock_opname[]
+  qr_code             qr_code[]
+  gedung              gedung?               @relation(fields: [id_gedung], references: [id_gedung], onDelete: NoAction, onUpdate: NoAction)
+  users               users?                @relation(fields: [penanggung_jawab], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model status_barang {
+  id_status                                                   Int                   @id @default(autoincrement())
+  nama_status                                                 String                @unique @db.VarChar(50)
+  barang                                                      barang[]
+  detail_stock_opname                                         detail_stock_opname[]
+  riwayat_barang_riwayat_barang_id_status_baruTostatus_barang riwayat_barang[]      @relation("riwayat_barang_id_status_baruTostatus_barang")
+  riwayat_barang_riwayat_barang_id_status_lamaTostatus_barang riwayat_barang[]      @relation("riwayat_barang_id_status_lamaTostatus_barang")
+}
+
+/// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
+model stock_opname {
+  id_opname           Int                   @id @default(autoincrement())
+  periode             String?               @db.VarChar(50)
+  tanggal_mulai       DateTime?             @db.Date
+  tanggal_selesai     DateTime?             @db.Date
+  diminta_oleh        String?               @db.VarChar(100)
+  id_user             Int?
+  status              String?               @db.VarChar(50)
+  catatan             String?
+  created_at          DateTime?             @default(now()) @db.Timestamp(6)
+  detail_stock_opname detail_stock_opname[]
+  penghapusan         penghapusan[]
+  users               users?                @relation(fields: [id_user], references: [id_user], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model users {
+  id_user                                                      Int                   @id @default(autoincrement())
+  nama                                                         String                @db.VarChar(100)
+  password                                                     String                @db.VarChar(255)
+  email                                                        String                @unique @db.VarChar(100)
+  id_role                                                      Int?
+  created_at                                                   DateTime?             @default(now()) @db.Timestamp(6)
+  barang                                                       barang[]
+  detail_stock_opname                                          detail_stock_opname[]
+  laporan                                                      laporan[]
+  laporan_kerusakan_laporan_kerusakan_diverifikasi_olehTousers laporan_kerusakan[]   @relation("laporan_kerusakan_diverifikasi_olehTousers")
+  laporan_kerusakan_laporan_kerusakan_id_userTousers           laporan_kerusakan[]   @relation("laporan_kerusakan_id_userTousers")
+  log_aktivitas                                                log_aktivitas[]
+  maintenance                                                  maintenance[]
+  pengajuan_pengajuan_diproses_olehTousers                     pengajuan[]           @relation("pengajuan_diproses_olehTousers")
+  pengajuan_pengajuan_id_user_pengajuTousers                   pengajuan[]           @relation("pengajuan_id_user_pengajuTousers")
+  penghapusan_penghapusan_disetujui_olehTousers                penghapusan[]         @relation("penghapusan_disetujui_olehTousers")
+  penghapusan_penghapusan_id_userTousers                       penghapusan[]         @relation("penghapusan_id_userTousers")
+  riwayat_barang                                               riwayat_barang[]
+  ruangan                                                      ruangan[]
+  stock_opname                                                 stock_opname[]
+  roles                                                        roles?                @relation(fields: [id_role], references: [id_role], onDelete: NoAction, onUpdate: NoAction)
+}
+
+model vendor {
+  id_vendor   Int           @id @default(autoincrement())
+  nama_vendor String        @db.VarChar(100)
+  kontak      String?       @db.VarChar(50)
+  email       String?       @db.VarChar(100)
+  alamat      String?
+  maintenance maintenance[]
+}

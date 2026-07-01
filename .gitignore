@@ -35,3 +35,5 @@ yarn-error.log*
 import-schema.js
 schema_aiven.sql
 database/schema_aiven.sql
+.vercel
+.env*
